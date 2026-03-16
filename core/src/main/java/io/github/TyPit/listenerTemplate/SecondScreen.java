@@ -16,6 +16,26 @@ import com.badlogic.gdx.utils.ScreenUtils;
 import com.github.tommyettinger.textra.Font;
 import com.github.tommyettinger.textra.KnownFonts;
 import com.github.tommyettinger.textra.Layout;
+import io.github.TyPit.listenerTemplate.items.AttackData;
+import io.github.TyPit.listenerTemplate.items.BossClearedEvent;
+import io.github.TyPit.listenerTemplate.items.BulletHitEnemyEvent;
+import io.github.TyPit.listenerTemplate.items.CharacterTypedCorrectEvent;
+import io.github.TyPit.listenerTemplate.items.CharacterTypedWrongEvent;
+import io.github.TyPit.listenerTemplate.items.CoreDamagedEvent;
+import io.github.TyPit.listenerTemplate.items.EnemyKilledEvent;
+import io.github.TyPit.listenerTemplate.items.GameContext;
+import io.github.TyPit.listenerTemplate.items.InventoryEntry;
+import io.github.TyPit.listenerTemplate.items.ItemDefinition;
+import io.github.TyPit.listenerTemplate.items.ItemEvent;
+import io.github.TyPit.listenerTemplate.items.ItemId;
+import io.github.TyPit.listenerTemplate.items.ItemPurchasedEvent;
+import io.github.TyPit.listenerTemplate.items.ItemRarity;
+import io.github.TyPit.listenerTemplate.items.ItemRegistry;
+import io.github.TyPit.listenerTemplate.items.ItemSystem;
+import io.github.TyPit.listenerTemplate.items.RoundClearedEvent;
+import io.github.TyPit.listenerTemplate.items.RoundStartedEvent;
+import io.github.TyPit.listenerTemplate.items.WordCompletedEvent;
+import java.util.EnumSet;
 import java.util.Random;
 
 public class SecondScreen implements Screen {
@@ -32,8 +52,8 @@ public class SecondScreen implements Screen {
     private static final float BASE_SPAWN_INTERVAL = 1.35f;
     private static final float MIN_SPAWN_INTERVAL = 0.05f;
     private static final float SPAWN_INTERVAL_DECAY = 0.82f;
-    private static final float ENEMY_MIN_SPEED = 62f;
-    private static final float ENEMY_MAX_SPEED = 104f;
+    private static final float ENEMY_MIN_SPEED = 48f;
+    private static final float ENEMY_MAX_SPEED = 82f;
     private static final int BASE_ENEMY_HEALTH = 1;
     private static final int BASE_ENEMY_DAMAGE = 1;
     private static final int TOTAL_ROUNDS = 24;
@@ -41,11 +61,13 @@ public class SecondScreen implements Screen {
     private static final int BASE_NORMAL_ROUND_SPAWN_EVENTS = 16;
     private static final float NORMAL_ROUND_SPAWN_GROWTH = 1.45f;
     private static final float ROUND_START_DELAY = 0.85f;
-    private static final float BASE_BOSS_SPEED = 28f;
+    private static final float BASE_BOSS_SPEED = 22f;
     private static final int BASE_BOSS_HEALTH = 8;
     private static final int BASE_BOSS_DAMAGE = 10;
     private static final float BULLET_RADIUS = 6f;
     private static final float BULLET_SPEED = 520f;
+    private static final float CRIT_MULTIPLIER = 2f;
+    private static final float PROC_CHAIN_STEP_DELAY = 0.02f;
     private static final float DAMAGE_NUMBER_LIFETIME = 0.45f;
     private static final int BASE_CORE_MAX_HEALTH = 3;
     private static final float RESTART_BUTTON_WIDTH = 260f;
@@ -54,13 +76,41 @@ public class SecondScreen implements Screen {
     private static final float SETTINGS_BUTTON_WIDTH = 390f;
     private static final float SETTINGS_BUTTON_HEIGHT = 42f;
     private static final float SETTINGS_BUTTON_GAP = 14f;
-    private static final float SHOP_PANEL_WIDTH = 920f;
-    private static final float SHOP_PANEL_HEIGHT = 420f;
-    private static final float SHOP_CARD_WIDTH = 250f;
-    private static final float SHOP_CARD_HEIGHT = 220f;
+    private static final float SETTINGS_SLIDER_WIDTH = 390f;
+    private static final float SETTINGS_SLIDER_HEIGHT = 16f;
+    private static final int SETTINGS_BUTTON_COUNT = 5;
+    private static final int SETTINGS_SLIDER_COUNT = 2;
+    private static final float SHOP_PANEL_WIDTH = 1140f;
+    private static final float SHOP_PANEL_HEIGHT = 560f;
+    private static final float SHOP_CARD_WIDTH = 340f;
+    private static final float SHOP_CARD_HEIGHT = 360f;
     private static final int SHOP_OFFER_COUNT = 3;
+    private static final int STARTING_GOLD = 100;
+    private static final int BASE_COMMON_ITEM_COST = 45;
+    private static final int BASE_UNCOMMON_ITEM_COST = 65;
+    private static final int BASE_RARE_ITEM_COST = 90;
+    private static final int BASE_LEGENDARY_ITEM_COST = 120;
+    private static final float BASE_REROLL_COST_FACTOR = 0.5f;
+    private static final float REROLL_COST_GROWTH = 1.3f;
+    private static final float MYSTERY_BOX_CHANCE = 0.30f;
+    private static final Color SHOP_CARD_BG_PURCHASED = new Color(0.09f, 0.12f, 0.1f, 0.98f);
+    private static final Color SHOP_CARD_HEADER_PURCHASED = new Color(0.16f, 0.3f, 0.2f, 0.98f);
+    private static final Color SHOP_CARD_BORDER_PURCHASED = new Color(0.46f, 0.8f, 0.58f, 1f);
+    private static final Color SHOP_CARD_BG_AFFORDABLE = new Color(0.1f, 0.11f, 0.15f, 0.98f);
+    private static final Color SHOP_CARD_BG_UNAFFORDABLE = new Color(0.12f, 0.09f, 0.1f, 0.98f);
+    private static final Color SHOP_CARD_HEADER_COMMON = new Color(0.2f, 0.22f, 0.24f, 0.98f);
+    private static final Color SHOP_CARD_BORDER_COMMON = new Color(0.6f, 0.62f, 0.68f, 1f);
+    private static final Color SHOP_CARD_HEADER_UNCOMMON = new Color(0.18f, 0.28f, 0.2f, 0.98f);
+    private static final Color SHOP_CARD_BORDER_UNCOMMON = new Color(0.48f, 0.78f, 0.54f, 1f);
+    private static final Color SHOP_CARD_HEADER_RARE = new Color(0.18f, 0.24f, 0.34f, 0.98f);
+    private static final Color SHOP_CARD_BORDER_RARE = new Color(0.42f, 0.64f, 0.92f, 1f);
+    private static final Color SHOP_CARD_HEADER_LEGENDARY = new Color(0.32f, 0.22f, 0.12f, 0.98f);
+    private static final Color SHOP_CARD_BORDER_LEGENDARY = new Color(0.92f, 0.68f, 0.28f, 1f);
+    private static final Color SHOP_CARD_HEADER_MYSTERY = new Color(0.26f, 0.16f, 0.32f, 0.98f);
+    private static final Color SHOP_CARD_BORDER_MYSTERY = new Color(0.72f, 0.42f, 0.88f, 1f);
+    private static final String COST_COLOR_UNAFFORDABLE = "[#FFB0B0]";
     private static final float DEBUG_PANEL_WIDTH = 280f;
-    private static final float DEBUG_PANEL_ROW_HEIGHT = 34f;
+    private static final float DEBUG_PANEL_ROW_HEIGHT = 38f;
     private static final float DEBUG_PANEL_PADDING = 12f;
     private static final int DEFAULT_AUTO_WPM = 60;
 
@@ -70,7 +120,14 @@ public class SecondScreen implements Screen {
     private final Array<DamageNumber> damageNumbers = new Array<>();
     private final Array<Enemy> enemies = new Array<>();
     private final Array<ShopOffer> shopOffers = new Array<>();
+    private final Array<QueuedProcAction> queuedProcActions = new Array<>();
+    private final Array<ExplosionEffect> explosionEffects = new Array<>();
+    private final Array<ChainEffect> chainEffects = new Array<>();
+    private final Array<CorePulseEffect> corePulseEffects = new Array<>();
     private final InfiniteEssay essay = new InfiniteEssay();
+    private final ItemRegistry itemRegistry = new ItemRegistry();
+    private final ItemSystem itemSystem = new ItemSystem(itemRegistry);
+    private final ScreenGameContext itemContext = new ScreenGameContext();
     private final Layout layout = new Layout();
     private final Layout measureLayout = new Layout();
     private final Vector3 tempTouch = new Vector3();
@@ -94,6 +151,9 @@ public class SecondScreen implements Screen {
     private float textWrapWidth;
     private float debugPanelX;
     private float debugPanelY;
+    private boolean isDraggingDebugPanel;
+    private float debugPanelDragOffsetX;
+    private float debugPanelDragOffsetY;
     private int currentLineIndex;
     private int currentCharIndex;
     private int completedWords;
@@ -115,12 +175,17 @@ public class SecondScreen implements Screen {
     private boolean godModeEnabled;
     private boolean roundJumpKeysEnabled;
     private boolean autoModeEnabled;
+    private boolean infiniteGoldEnabled;
+    private boolean itemMenuEnabled;
     private int playerBaseDamage;
     private int autoFireWpm;
+    private int rerollsUsedThisShop;
     private float autoFireTimer;
-    private int enemyKillGoldBonus;
-    private int roundClearGoldBonus;
-    private int bossClearGoldBonus;
+    private String lastItemEventLabel = "None";
+    private AttackData currentItemEventAttack;
+    private Enemy currentItemEventTarget;
+    private int nextAttackId = 1;
+    private final float[] nextProcChainTimes = new float[4096];
 
     public SecondScreen(final Drop game) {
         this.game = game;
@@ -138,12 +203,15 @@ public class SecondScreen implements Screen {
         restartButtonX = coreX - RESTART_BUTTON_WIDTH * 0.5f;
         restartButtonY = CORE_Y - 120f;
         shopPanelX = coreX - SHOP_PANEL_WIDTH * 0.5f;
-        shopPanelY = CORE_Y - 190f;
+        shopPanelY = CORE_Y - 280f;
         settingsPanelX = coreX - SETTINGS_PANEL_WIDTH * 0.5f;
-        settingsPanelY = CORE_Y - 150f;
+        settingsPanelY = CORE_Y - getSettingsPanelHeight() * 0.5f;
         textWrapWidth = BOX_WIDTH - PADDING * 2f;
         debugPanelX = game.viewport.getWorldWidth() - DEBUG_PANEL_WIDTH - 24f;
-        debugPanelY = game.viewport.getWorldHeight() - 300f;
+        debugPanelY = game.viewport.getWorldHeight() - getDebugPanelHeight() - 24f;
+        isDraggingDebugPanel = false;
+        debugPanelDragOffsetX = 0f;
+        debugPanelDragOffsetY = 0f;
 
         resetRunState();
 
@@ -164,10 +232,12 @@ public class SecondScreen implements Screen {
         drawCore();
         drawEnemies();
         drawBullets();
+        drawVisualEffects();
         drawText(game.batch);
         drawStatus(game.batch);
         drawDamageNumbers(game.batch);
         drawDebugPanel();
+        drawItemMenuOverlay();
         drawShopOverlay();
         drawSettingsOverlay();
         drawOverlay();
@@ -187,6 +257,8 @@ public class SecondScreen implements Screen {
         updateEnemies(delta);
         updateBullets(delta);
         updateDamageNumbers(delta);
+        updateVisualEffects(delta);
+        updateQueuedProcs(delta);
         updateAutoMode(delta);
         updateRoundState();
     }
@@ -252,10 +324,40 @@ public class SecondScreen implements Screen {
 
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         for (Bullet bullet : bullets) {
-            shapes.setColor(0.9f, 0.95f, 1f, 0.95f);
+            if (bullet.bonusShot) {
+                shapes.setColor(1f, 0.92f, 0.55f, 0.98f);
+            } else {
+                shapes.setColor(0.9f, 0.95f, 1f, 0.95f);
+            }
             shapes.circle(bullet.position.x, bullet.position.y, BULLET_RADIUS);
-            shapes.setColor(0.36f, 0.78f, 1f, 0.35f);
+            if (bullet.bonusShot) {
+                shapes.setColor(1f, 0.72f, 0.28f, 0.38f);
+            } else {
+                shapes.setColor(0.36f, 0.78f, 1f, 0.35f);
+            }
             shapes.circle(bullet.position.x, bullet.position.y, BULLET_RADIUS * 2.5f);
+        }
+        shapes.end();
+    }
+
+    private void drawVisualEffects() {
+        if (explosionEffects.size == 0 && chainEffects.size == 0 && corePulseEffects.size == 0) return;
+
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        for (ExplosionEffect effect : explosionEffects) {
+            float alpha = effect.remaining / effect.duration;
+            shapes.setColor(1f, 0.74f, 0.28f, alpha);
+            shapes.circle(effect.position.x, effect.position.y, effect.radius * (1.2f - alpha * 0.4f), 28);
+        }
+        for (CorePulseEffect effect : corePulseEffects) {
+            float alpha = effect.remaining / effect.duration;
+            shapes.setColor(0.55f, 0.82f, 1f, alpha);
+            shapes.circle(coreX, CORE_Y, effect.radius * (1.15f - alpha * 0.35f), 32);
+        }
+        for (ChainEffect effect : chainEffects) {
+            float alpha = effect.remaining / effect.duration;
+            shapes.setColor(0.72f, 0.92f, 1f, alpha);
+            shapes.line(effect.fromX, effect.fromY, effect.toX, effect.toY);
         }
         shapes.end();
     }
@@ -352,7 +454,7 @@ public class SecondScreen implements Screen {
         batch.begin();
         font.enableShader(batch);
         for (DamageNumber number : damageNumbers) {
-            drawMarkupText(batch, "[#FFDB8F]" + number.text, number.position.x, number.position.y);
+            drawMarkupText(batch, (number.critical ? "[#FF8A6B]" : "[#FFDB8F]") + number.text, number.position.x, number.position.y);
         }
         font.pauseDistanceFieldShader(batch);
         batch.end();
@@ -389,7 +491,7 @@ public class SecondScreen implements Screen {
             return;
         }
 
-        float panelHeight = 86f + 5f * (SETTINGS_BUTTON_HEIGHT + SETTINGS_BUTTON_GAP);
+        float panelHeight = getSettingsPanelHeight();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(0.02f, 0.03f, 0.04f, 0.82f);
         shapes.rect(0f, 0f, game.viewport.getWorldWidth(), game.viewport.getWorldHeight());
@@ -398,9 +500,21 @@ public class SecondScreen implements Screen {
 
         float buttonX = settingsPanelX + (SETTINGS_PANEL_WIDTH - SETTINGS_BUTTON_WIDTH) * 0.5f;
         shapes.setColor(0.14f, 0.16f, 0.2f, 0.95f);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < SETTINGS_BUTTON_COUNT; i++) {
             float buttonY = getSettingsButtonY(i);
             shapes.rect(buttonX, buttonY, SETTINGS_BUTTON_WIDTH, SETTINGS_BUTTON_HEIGHT);
+        }
+        for (int i = 0; i < SETTINGS_SLIDER_COUNT; i++) {
+            float sliderX = settingsPanelX + (SETTINGS_PANEL_WIDTH - SETTINGS_SLIDER_WIDTH) * 0.5f;
+            float sliderY = getSettingsSliderTrackY(i);
+            shapes.setColor(0.14f, 0.16f, 0.2f, 0.95f);
+            shapes.rect(sliderX, sliderY, SETTINGS_SLIDER_WIDTH, SETTINGS_SLIDER_HEIGHT);
+            float fillWidth = SETTINGS_SLIDER_WIDTH * (i == 0 ? game.musicVolume : game.soundVolume);
+            shapes.setColor(0.78f, 0.65f, 0.28f, 0.95f);
+            shapes.rect(sliderX, sliderY, fillWidth, SETTINGS_SLIDER_HEIGHT);
+            shapes.setColor(0.96f, 0.92f, 0.74f, 1f);
+            float knobX = sliderX + fillWidth;
+            shapes.rect(knobX - 4f, sliderY - 5f, 8f, SETTINGS_SLIDER_HEIGHT + 10f);
         }
         shapes.end();
 
@@ -408,9 +522,14 @@ public class SecondScreen implements Screen {
         shapes.setColor(0.52f, 0.58f, 0.7f, 0.95f);
         shapes.rect(settingsPanelX, settingsPanelY, SETTINGS_PANEL_WIDTH, panelHeight);
         shapes.setColor(0.48f, 0.54f, 0.66f, 1f);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < SETTINGS_BUTTON_COUNT; i++) {
             float buttonY = getSettingsButtonY(i);
             shapes.rect(buttonX, buttonY, SETTINGS_BUTTON_WIDTH, SETTINGS_BUTTON_HEIGHT);
+        }
+        for (int i = 0; i < SETTINGS_SLIDER_COUNT; i++) {
+            float sliderX = settingsPanelX + (SETTINGS_PANEL_WIDTH - SETTINGS_SLIDER_WIDTH) * 0.5f;
+            float sliderY = getSettingsSliderTrackY(i);
+            shapes.rect(sliderX, sliderY, SETTINGS_SLIDER_WIDTH, SETTINGS_SLIDER_HEIGHT);
         }
         shapes.end();
 
@@ -422,6 +541,8 @@ public class SecondScreen implements Screen {
         drawSettingsButtonText("Windowed", 2);
         drawSettingsButtonText("Fullscreen Windowed", 3);
         drawSettingsButtonText("Title Screen", 4);
+        drawSettingsSliderText("Music Volume", game.musicVolume, 0);
+        drawSettingsSliderText("Sound Volume", game.soundVolume, 1);
         font.pauseDistanceFieldShader(game.batch);
         game.batch.end();
     }
@@ -447,46 +568,101 @@ public class SecondScreen implements Screen {
         font.enableShader(game.batch);
         drawMarkupText(game.batch, "[#FFF2BC]Intermission Shop", shopPanelX + 24f, shopPanelY + SHOP_PANEL_HEIGHT - 24f);
         drawMarkupText(game.batch, "[#C7D6E6]Gold: " + gold, shopPanelX + SHOP_PANEL_WIDTH - 170f, shopPanelY + SHOP_PANEL_HEIGHT - 24f);
-        drawMarkupText(game.batch, "[#AAB0BF]Choose upgrades, then continue to the next round.", shopPanelX + 24f, shopPanelY + SHOP_PANEL_HEIGHT - 58f);
+        drawMarkupText(game.batch, "[#AAB0BF]Choose upgrades, reroll if needed, and watch for mystery boxes.", shopPanelX + 24f, shopPanelY + SHOP_PANEL_HEIGHT - 58f);
         font.pauseDistanceFieldShader(game.batch);
         game.batch.end();
 
         for (int i = 0; i < shopOffers.size; i++) {
             drawShopCard(shopOffers.get(i), i);
         }
+        drawShopRerollButton();
         drawShopContinueButton();
+    }
+
+    private String getRarityColorMarkup(ItemRarity rarity) {
+        if (rarity == null) return "[#999EAD]";
+        switch (rarity) {
+            case UNCOMMON: return "[#7AC689]"; // Green
+            case RARE: return "[#6BA3EA]"; // Blue
+            case LEGENDARY: return "[#EAAD47]"; // Gold
+            case COMMON:
+            default: return "[#999EAD]"; // Grey/White
+        }
     }
 
     private void drawShopCard(ShopOffer offer, int index) {
         float cardX = getShopCardX(index);
-        float cardY = shopPanelY + 92f;
-        boolean affordable = gold >= offer.cost;
+        float cardY = getShopCardY();
+        boolean affordable = infiniteGoldEnabled || gold >= offer.cost;
+        float headerHeight = 75f;
+        float footerHeight = 55f;
 
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        // 1. Determine colors based on state
+        Color bgColor, headerColor, borderColor;
+        String costColorMarkup;
         if (offer.purchased) {
-            shapes.setColor(0.1f, 0.18f, 0.11f, 0.95f);
-        } else if (affordable) {
-            shapes.setColor(0.12f, 0.13f, 0.16f, 0.95f);
-        } else {
-            shapes.setColor(0.15f, 0.09f, 0.09f, 0.95f);
+            bgColor = SHOP_CARD_BG_PURCHASED;
+            headerColor = SHOP_CARD_HEADER_PURCHASED;
+            borderColor = SHOP_CARD_BORDER_PURCHASED;
+            costColorMarkup = "[#AAB0BF]";
+        } else { 
+            bgColor = affordable ? SHOP_CARD_BG_AFFORDABLE : SHOP_CARD_BG_UNAFFORDABLE;
+            costColorMarkup = affordable ? "[#E5F2FF]" : COST_COLOR_UNAFFORDABLE;
+            
+            if (offer.isMystery) {
+                headerColor = SHOP_CARD_HEADER_MYSTERY;
+                borderColor = SHOP_CARD_BORDER_MYSTERY;
+            } else {
+                switch (offer.rarity) {
+                    case UNCOMMON:
+                        headerColor = SHOP_CARD_HEADER_UNCOMMON;
+                        borderColor = SHOP_CARD_BORDER_UNCOMMON;
+                        break;
+                    case RARE:
+                        headerColor = SHOP_CARD_HEADER_RARE;
+                        borderColor = SHOP_CARD_BORDER_RARE;
+                        break;
+                    case LEGENDARY:
+                        headerColor = SHOP_CARD_HEADER_LEGENDARY;
+                        borderColor = SHOP_CARD_BORDER_LEGENDARY;
+                        break;
+                    case COMMON:
+                    default:
+                        headerColor = SHOP_CARD_HEADER_COMMON;
+                        borderColor = SHOP_CARD_BORDER_COMMON;
+                        break;
+                }
+            }
         }
+
+        // 2. Draw shapes
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(bgColor);
         shapes.rect(cardX, cardY, SHOP_CARD_WIDTH, SHOP_CARD_HEIGHT);
+        shapes.setColor(headerColor);
+        shapes.rect(cardX, cardY + SHOP_CARD_HEIGHT - headerHeight, SHOP_CARD_WIDTH, headerHeight);
+        shapes.rect(cardX, cardY, SHOP_CARD_WIDTH, footerHeight);
         shapes.end();
 
         shapes.begin(ShapeRenderer.ShapeType.Line);
-        shapes.setColor(offer.purchased ? 0.45f : 0.58f, offer.purchased ? 0.86f : 0.62f, offer.purchased ? 0.48f : 0.72f, 1f);
+        shapes.setColor(borderColor);
         shapes.rect(cardX, cardY, SHOP_CARD_WIDTH, SHOP_CARD_HEIGHT);
+        shapes.line(cardX, cardY + SHOP_CARD_HEIGHT - headerHeight, cardX + SHOP_CARD_WIDTH, cardY + SHOP_CARD_HEIGHT - headerHeight);
+        shapes.line(cardX, cardY + footerHeight, cardX + SHOP_CARD_WIDTH, cardY + footerHeight);
         shapes.end();
 
+        // 3. Draw text
         game.batch.begin();
         font.enableShader(game.batch);
-        drawWrappedMarkupText(game.batch,
-            offer.purchased ? "[#C7FFD1]Purchased" : "[#FFF2BC]" + offer.name,
-            cardX + 16f, cardY + SHOP_CARD_HEIGHT - 18f, SHOP_CARD_WIDTH - 32f, 2);
-        drawWrappedMarkupText(game.batch,
-            "[#C7D6E6]" + offer.description,
-            cardX + 16f, cardY + SHOP_CARD_HEIGHT - 100f, SHOP_CARD_WIDTH - 32f, 3);
-        drawMarkupText(game.batch, offer.purchased ? "[#AAB0BF]Owned" : "[#E5F2FF]Cost: " + offer.cost, cardX + 16f, cardY + 28f);
+        String titleColor = offer.isMystery && !offer.purchased ? "[#E0B0FF]" : (offer.purchased ? "[#C7FFD1]" : getRarityColorMarkup(offer.rarity));
+        drawWrappedMarkupText(game.batch, "[%75]" + titleColor + offer.name, cardX + 16f, cardY + SHOP_CARD_HEIGHT - 26f, SHOP_CARD_WIDTH - 32f, 2);
+        
+        String descMarkup = (offer.isMystery ? "[%70]" : "[%85]") + "[#C7D6E6]" + offer.description;
+        float descLineHeight = offer.isMystery ? 0.85f : 0.95f;
+        drawWrappedMarkupText(game.batch, descMarkup, cardX + 16f, cardY + SHOP_CARD_HEIGHT - headerHeight - 24f, SHOP_CARD_WIDTH - 32f, 6, descLineHeight);
+        
+        String costText = offer.purchased ? costColorMarkup + "OWNED" : costColorMarkup + "Cost: " + offer.cost;
+        drawMarkupText(game.batch, costText, cardX + 16f, cardY + footerHeight - 22f);
         font.pauseDistanceFieldShader(game.batch);
         game.batch.end();
     }
@@ -514,8 +690,40 @@ public class SecondScreen implements Screen {
         game.batch.end();
     }
 
+    private void drawShopRerollButton() {
+        float buttonWidth = 220f;
+        float buttonHeight = 42f;
+        float buttonX = shopPanelX + SHOP_PANEL_WIDTH - buttonWidth * 2f - 40f;
+        float buttonY = shopPanelY + 24f;
+        int rerollCost = getCurrentRerollCost();
+        boolean affordable = infiniteGoldEnabled || gold >= rerollCost;
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(affordable ? new Color(0.2f, 0.18f, 0.1f, 0.96f) : new Color(0.16f, 0.11f, 0.11f, 0.96f));
+        shapes.rect(buttonX, buttonY, buttonWidth, buttonHeight);
+        shapes.end();
+
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(affordable ? new Color(0.9f, 0.74f, 0.34f, 1f) : new Color(0.7f, 0.44f, 0.44f, 1f));
+        shapes.rect(buttonX, buttonY, buttonWidth, buttonHeight);
+        shapes.end();
+
+        game.batch.begin();
+        font.enableShader(game.batch);
+        drawMarkupText(game.batch, "[#FFF2BC]Reroll", buttonX + 26f, buttonY + 24f);
+        drawMarkupText(game.batch, (affordable ? "[#E5F2FF]" : COST_COLOR_UNAFFORDABLE) + rerollCost, buttonX + 132f, buttonY + 24f);
+        font.pauseDistanceFieldShader(game.batch);
+        game.batch.end();
+    }
+
     private float getShopCardX(int index) {
-        return shopPanelX + 24f + index * (SHOP_CARD_WIDTH + 35f);
+        float totalCardsWidth = SHOP_OFFER_COUNT * SHOP_CARD_WIDTH;
+        float spacing = (SHOP_PANEL_WIDTH - totalCardsWidth) / (SHOP_OFFER_COUNT + 1);
+        return shopPanelX + spacing + index * (SHOP_CARD_WIDTH + spacing);
+    }
+
+    private float getShopCardY() {
+        return shopPanelY + 96f;
     }
 
     private void drawSettingsButtonText(String label, int index) {
@@ -526,8 +734,26 @@ public class SecondScreen implements Screen {
     }
 
     private float getSettingsButtonY(int index) {
-        float panelHeight = 86f + 5f * (SETTINGS_BUTTON_HEIGHT + SETTINGS_BUTTON_GAP);
+        float panelHeight = getSettingsPanelHeight();
         return settingsPanelY + panelHeight - 82f - (index + 1) * SETTINGS_BUTTON_HEIGHT - index * SETTINGS_BUTTON_GAP;
+    }
+
+    private float getSettingsPanelHeight() {
+        return 104f + SETTINGS_BUTTON_COUNT * (SETTINGS_BUTTON_HEIGHT + SETTINGS_BUTTON_GAP)
+            + SETTINGS_SLIDER_COUNT * (SETTINGS_BUTTON_HEIGHT + SETTINGS_BUTTON_GAP);
+    }
+
+    private float getSettingsSliderTrackY(int index) {
+        float buttonX = settingsPanelX + (SETTINGS_PANEL_WIDTH - SETTINGS_BUTTON_WIDTH) * 0.5f;
+        float baseY = getSettingsButtonY(SETTINGS_BUTTON_COUNT - 1) - SETTINGS_BUTTON_GAP - SETTINGS_BUTTON_HEIGHT;
+        return baseY - index * (SETTINGS_BUTTON_HEIGHT + SETTINGS_BUTTON_GAP) + (SETTINGS_BUTTON_HEIGHT - SETTINGS_SLIDER_HEIGHT) * 0.5f;
+    }
+
+    private void drawSettingsSliderText(String label, float value, int index) {
+        float sliderX = settingsPanelX + (SETTINGS_PANEL_WIDTH - SETTINGS_SLIDER_WIDTH) * 0.5f;
+        float rowY = getSettingsSliderTrackY(index);
+        drawMarkupText(game.batch, "[#E5F2FF]" + label, sliderX, rowY + 34f);
+        drawMarkupText(game.batch, "[#FFF2BC]" + Math.round(value * 100f) + "%", sliderX + SETTINGS_SLIDER_WIDTH - 64f, rowY + 34f);
     }
 
     private void drawDebugPanel() {
@@ -535,7 +761,7 @@ public class SecondScreen implements Screen {
             return;
         }
 
-        float panelHeight = DEBUG_PANEL_PADDING * 2f + DEBUG_PANEL_ROW_HEIGHT * 7f;
+        float panelHeight = getDebugPanelHeight();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(0.05f, 0.06f, 0.08f, 0.92f);
         shapes.rect(debugPanelX, debugPanelY, DEBUG_PANEL_WIDTH, panelHeight);
@@ -551,11 +777,20 @@ public class SecondScreen implements Screen {
         drawMarkupText(game.batch, "[#FFF2BC]Debug", debugPanelX + DEBUG_PANEL_PADDING, debugPanelY + panelHeight - 12f);
         drawDebugToggleRow("God", godModeEnabled, 0);
         drawDebugToggleRow("Round Keys", roundJumpKeysEnabled, 1);
-        drawDebugStepperRow("Damage", Integer.toString(playerBaseDamage), 2);
+        drawDebugStepperRow("Damage", Integer.toString(getCurrentBaseDamage()), 2);
         drawDebugToggleRow("Easy Text", easyTextMode, 3);
         drawDebugToggleRow("Auto Fire", autoModeEnabled, 4);
         drawDebugStepperRow("WPM", Integer.toString(autoFireWpm), 5);
-        drawMarkupText(game.batch, "[#AAB0BF]Up/Down rounds only when enabled", debugPanelX + DEBUG_PANEL_PADDING, getDebugRowCenterY(6) + 6f);
+        drawDebugToggleRow("Infinite Gold", infiniteGoldEnabled, 6);
+        drawDebugToggleRow("Item Spawner", itemMenuEnabled, 7);
+        drawWrappedMarkupText(game.batch, "[#AAB0BF]Up/Down rounds only when enabled",
+            debugPanelX + DEBUG_PANEL_PADDING, getDebugRowCenterY(8) + 6f, DEBUG_PANEL_WIDTH - DEBUG_PANEL_PADDING * 2f, 2);
+        drawWrappedMarkupText(game.batch, "[#AAB0BF]Items: " + getInventorySummary(),
+            debugPanelX + DEBUG_PANEL_PADDING, getDebugRowCenterY(10) + 6f, DEBUG_PANEL_WIDTH - DEBUG_PANEL_PADDING * 2f, 3);
+        drawWrappedMarkupText(game.batch, "[#AAB0BF]Stats: " + getPassiveSummary(),
+            debugPanelX + DEBUG_PANEL_PADDING, getDebugRowCenterY(13) + 6f, DEBUG_PANEL_WIDTH - DEBUG_PANEL_PADDING * 2f, 2);
+        drawWrappedMarkupText(game.batch, "[#AAB0BF]Last item event: " + lastItemEventLabel,
+            debugPanelX + DEBUG_PANEL_PADDING, getDebugRowCenterY(15) + 6f, DEBUG_PANEL_WIDTH - DEBUG_PANEL_PADDING * 2f, 2);
         font.pauseDistanceFieldShader(game.batch);
         game.batch.end();
     }
@@ -591,8 +826,78 @@ public class SecondScreen implements Screen {
     }
 
     private float getDebugRowCenterY(int rowIndex) {
-        float panelHeight = DEBUG_PANEL_PADDING * 2f + DEBUG_PANEL_ROW_HEIGHT * 7f;
+        float panelHeight = getDebugPanelHeight();
         return debugPanelY + panelHeight - DEBUG_PANEL_PADDING - 36f - rowIndex * DEBUG_PANEL_ROW_HEIGHT;
+    }
+
+    private float getDebugPanelHeight() {
+        return DEBUG_PANEL_PADDING * 2f + DEBUG_PANEL_ROW_HEIGHT * 17f;
+    }
+
+    private void drawItemMenuOverlay() {
+        if (!itemMenuEnabled || !game.debugMenuUnlocked || coreHealth <= 0) {
+            return;
+        }
+
+        float menuWidth = 860f;
+        float menuHeight = 560f;
+        float menuX = coreX - menuWidth * 0.5f;
+        float menuY = CORE_Y - menuHeight * 0.5f;
+
+        shapes.begin(ShapeRenderer.ShapeType.Filled);
+        shapes.setColor(0.04f, 0.05f, 0.07f, 0.98f);
+        shapes.rect(menuX, menuY, menuWidth, menuHeight);
+        shapes.end();
+
+        shapes.begin(ShapeRenderer.ShapeType.Line);
+        shapes.setColor(0.46f, 0.52f, 0.62f, 0.95f);
+        shapes.rect(menuX, menuY, menuWidth, menuHeight);
+        shapes.end();
+
+        game.batch.begin();
+        font.enableShader(game.batch);
+        drawMarkupText(game.batch, "[#FFF2BC]Debug Item Spawner", menuX + 24f, menuY + menuHeight - 24f);
+        font.pauseDistanceFieldShader(game.batch);
+        game.batch.end();
+
+        int index = 0;
+        float cardWidth = 190f;
+        float cardHeight = 100f;
+        float padding = 16f;
+        float startX = menuX + 26f;
+        float startY = menuY + menuHeight - 64f;
+
+        for (ItemDefinition def : itemRegistry.getAll()) {
+            int col = index % 4;
+            int row = index / 4;
+            float cardX = startX + col * (cardWidth + padding);
+            float cardY = startY - cardHeight - row * (cardHeight + padding);
+            float btnWidth = 70f;
+            float btnHeight = 28f;
+            float btnY = cardY + 8f;
+            float plusX = cardX + 8f;
+            float minusX = cardX + cardWidth - btnWidth - 8f;
+
+            shapes.begin(ShapeRenderer.ShapeType.Filled);
+            shapes.setColor(0.1f, 0.12f, 0.15f, 0.95f);
+            shapes.rect(cardX, cardY, cardWidth, cardHeight);
+            shapes.setColor(0.18f, 0.42f, 0.24f, 0.95f);
+            shapes.rect(plusX, btnY, btnWidth, btnHeight);
+            shapes.setColor(0.42f, 0.18f, 0.18f, 0.95f);
+            shapes.rect(minusX, btnY, btnWidth, btnHeight);
+            shapes.end();
+
+            game.batch.begin();
+            font.enableShader(game.batch);
+            String titleColor = getRarityColorMarkup(def.rarity);
+            drawWrappedMarkupText(game.batch, titleColor + def.name, cardX + 8f, cardY + cardHeight - 8f, cardWidth - 16f, 2);
+            drawMarkupText(game.batch, "[#C7D6E6]Owned: " + itemSystem.getStacks(def.id), cardX + 8f, cardY + cardHeight - 44f);
+            drawMarkupText(game.batch, "[#C7FFD1]+", plusX + 28f, btnY + 22f);
+            drawMarkupText(game.batch, "[#FFB0B0]-", minusX + 30f, btnY + 22f);
+            font.pauseDistanceFieldShader(game.batch);
+            game.batch.end();
+            index++;
+        }
     }
 
     private void drawMarkupText(SpriteBatch batch, String markup, float x, float y) {
@@ -602,9 +907,14 @@ public class SecondScreen implements Screen {
     }
 
     private void drawWrappedMarkupText(SpriteBatch batch, String markup, float x, float y, float maxWidth, int maxLines) {
+        drawWrappedMarkupText(batch, markup, x, y, maxWidth, maxLines, 1.25f);
+    }
+
+    private void drawWrappedMarkupText(SpriteBatch batch, String markup, float x, float y, float maxWidth, int maxLines, float lineHeightMultiplier) {
         Array<String> lines = wrapMarkupText(markup, maxWidth, maxLines);
+        float lineHeight = font.cellHeight * lineHeightMultiplier;
         for (int i = 0; i < lines.size; i++) {
-            drawMarkupText(batch, lines.get(i), x, y - i * (font.cellHeight * 0.92f));
+            drawMarkupText(batch, lines.get(i), x, y - i * lineHeight);
         }
     }
 
@@ -612,30 +922,35 @@ public class SecondScreen implements Screen {
         Array<String> lines = new Array<>();
         String colorPrefix = "";
         String content = markup;
-        int tagEnd = markup.indexOf(']');
-        if (markup.startsWith("[") && tagEnd >= 0) {
-            colorPrefix = markup.substring(0, tagEnd + 1);
-            content = markup.substring(tagEnd + 1);
+        while (content.startsWith("[")) {
+            int tagEnd = content.indexOf(']');
+            if (tagEnd >= 0) {
+                colorPrefix += content.substring(0, tagEnd + 1);
+                content = content.substring(tagEnd + 1);
+            } else {
+                break;
+            }
         }
 
         String[] words = content.split(" ");
         StringBuilder current = new StringBuilder();
         for (String word : words) {
             String candidate = current.length() == 0 ? word : current + " " + word;
-            if (current.length() > 0 && measureTextWidth(candidate) > maxWidth) {
-                lines.add(colorPrefix + current);
-                current.setLength(0);
-                current.append(word);
-                if (lines.size >= maxLines - 1) {
+            if (current.length() > 0 && measureTextWidth(colorPrefix + candidate) > maxWidth) {
+                lines.add(colorPrefix + current.toString());
+                if (lines.size >= maxLines) {
+                    current.setLength(0);
                     break;
                 }
+                current.setLength(0);
+                current.append(word);
             } else {
                 current.setLength(0);
                 current.append(candidate);
             }
         }
         if (lines.size < maxLines && current.length() > 0) {
-            lines.add(colorPrefix + current);
+            lines.add(colorPrefix + current.toString());
         }
         return lines;
     }
@@ -673,7 +988,13 @@ public class SecondScreen implements Screen {
 
         Vector2 coreTarget = new Vector2(coreX, CORE_Y);
         for (Enemy enemy : enemies) {
-            enemy.velocity.set(coreTarget).sub(enemy.position).nor().scl(enemy.speed * delta);
+            if (enemy.slowTimer > 0f) {
+                enemy.slowTimer = Math.max(0f, enemy.slowTimer - delta);
+                if (enemy.slowTimer == 0f) {
+                    enemy.slowMultiplier = 1f;
+                }
+            }
+            enemy.velocity.set(coreTarget).sub(enemy.position).nor().scl(enemy.speed * enemy.slowMultiplier * delta);
             enemy.position.add(enemy.velocity);
             float radius = enemy.isBoss ? ENEMY_RADIUS * 2.35f : ENEMY_RADIUS;
             enemy.position.y = Math.max(enemy.position.y, BOX_Y + BOX_HEIGHT + radius + 12f);
@@ -687,6 +1008,7 @@ public class SecondScreen implements Screen {
                 enemies.removeIndex(i);
                 if (!godModeEnabled) {
                     coreHealth = Math.max(0, coreHealth - enemy.damage);
+                    dispatchItemEvent(new CoreDamagedEvent(enemy.damage, coreHealth));
                 }
             }
         }
@@ -728,13 +1050,18 @@ public class SecondScreen implements Screen {
     }
 
     private void applyBulletHit(int bulletIndex, Bullet bullet, Enemy target) {
-        target.health -= bullet.damage;
-        damageNumbers.add(new DamageNumber(new Vector2(target.position.x - 8f, target.position.y + 34f), Integer.toString(bullet.damage)));
+        target.health -= bullet.attack.damage;
+        damageNumbers.add(new DamageNumber(new Vector2(target.position.x - 8f, target.position.y + 34f),
+            bullet.attack.critical ? "CRIT " + bullet.attack.damage : Integer.toString(bullet.attack.damage), bullet.attack.critical));
         bullets.removeIndex(bulletIndex);
+        boolean killed = target.health <= 0;
+        dispatchItemEvent(new BulletHitEnemyEvent(bullet.attack.damage, killed, target.isBoss, bullet.attack.critical), bullet.attack, target);
 
-        if (target.health <= 0) {
-            gold += getEnemyKillGold(target);
+        if (killed) {
+            int killGold = getEnemyKillGold(target);
+            gold += killGold;
             enemies.removeValue(target, true);
+            dispatchItemEvent(new EnemyKilledEvent(target.isBoss, killGold, bullet.attack.critical), bullet.attack, target);
         }
     }
 
@@ -745,6 +1072,41 @@ public class SecondScreen implements Screen {
             number.position.y += 36f * delta;
             if (number.remaining <= 0f) {
                 damageNumbers.removeIndex(i);
+            }
+        }
+    }
+
+    private void updateVisualEffects(float delta) {
+        for (int i = explosionEffects.size - 1; i >= 0; i--) {
+            ExplosionEffect effect = explosionEffects.get(i);
+            effect.remaining -= delta;
+            if (effect.remaining <= 0f) {
+                explosionEffects.removeIndex(i);
+            }
+        }
+        for (int i = chainEffects.size - 1; i >= 0; i--) {
+            ChainEffect effect = chainEffects.get(i);
+            effect.remaining -= delta;
+            if (effect.remaining <= 0f) {
+                chainEffects.removeIndex(i);
+            }
+        }
+        for (int i = corePulseEffects.size - 1; i >= 0; i--) {
+            CorePulseEffect effect = corePulseEffects.get(i);
+            effect.remaining -= delta;
+            if (effect.remaining <= 0f) {
+                corePulseEffects.removeIndex(i);
+            }
+        }
+    }
+
+    private void updateQueuedProcs(float delta) {
+        for (int i = queuedProcActions.size - 1; i >= 0; i--) {
+            QueuedProcAction action = queuedProcActions.get(i);
+            action.remainingDelay -= delta;
+            if (action.remainingDelay <= 0f) {
+                queuedProcActions.removeIndex(i);
+                action.runnable.run();
             }
         }
     }
@@ -803,11 +1165,14 @@ public class SecondScreen implements Screen {
         );
     }
 
-    private void fireWordShot() {
+    private AttackData fireWordShot() {
         Enemy target = findNearestEnemy();
-        if (target == null) return;
+        if (target == null) return null;
 
-        bullets.add(new Bullet(new Vector2(coreX, CORE_Y), target, playerBaseDamage));
+        AttackData attack = createAttack(getCurrentBaseDamage(), "word", null);
+        bullets.add(new Bullet(new Vector2(coreX, CORE_Y), target, attack, false));
+        SimpleSfx.playShot(game.soundVolume);
+        return attack;
     }
 
     private Enemy findNearestEnemy() {
@@ -823,13 +1188,53 @@ public class SecondScreen implements Screen {
         return nearest;
     }
 
+    private Enemy findStrongestEnemy() {
+        Enemy strongest = null;
+        int bestHealth = Integer.MIN_VALUE;
+        float bestDistance = Float.MAX_VALUE;
+        for (Enemy enemy : enemies) {
+            float distance = enemy.position.dst2(coreX, CORE_Y);
+            if (enemy.health > bestHealth || (enemy.health == bestHealth && distance < bestDistance)) {
+                strongest = enemy;
+                bestHealth = enemy.health;
+                bestDistance = distance;
+            }
+        }
+        return strongest;
+    }
+
+    private Array<Enemy> findNearbyEnemies(Enemy centerEnemy, float radius, int maxTargets, boolean excludeCenter) {
+        Array<Enemy> candidates = new Array<Enemy>();
+        if (centerEnemy == null || maxTargets <= 0) {
+            return candidates;
+        }
+        float radiusSquared = radius * radius;
+        for (Enemy enemy : enemies) {
+            if (excludeCenter && enemy == centerEnemy) {
+                continue;
+            }
+            if (enemy.position.dst2(centerEnemy.position) <= radiusSquared) {
+                candidates.add(enemy);
+            }
+        }
+        candidates.sort((a, b) -> Float.compare(a.position.dst2(centerEnemy.position), b.position.dst2(centerEnemy.position)));
+        while (candidates.size > maxTargets) {
+            candidates.pop();
+        }
+        return candidates;
+    }
+
     private void advanceChar() {
         String line = visibleLines.get(currentLineIndex);
+        char typedCharacter = line.charAt(currentCharIndex);
         currentCharIndex++;
+        dispatchItemEvent(new CharacterTypedCorrectEvent(typedCharacter, completedWords, currentCharIndex));
 
         if (currentCharIndex > 0 && currentCharIndex <= line.length() && Character.isWhitespace(line.charAt(currentCharIndex - 1))) {
             completedWords++;
-            fireWordShot();
+            String completedWord = extractCompletedWord(line, currentCharIndex);
+            AttackData wordAttack = fireWordShot();
+            dispatchItemEvent(new WordCompletedEvent(completedWord, completedWords, errorFlash <= 0f), wordAttack);
         }
 
         if (currentCharIndex >= line.length()) {
@@ -858,13 +1263,19 @@ public class SecondScreen implements Screen {
             return;
         }
 
-        gold += getRoundClearGold();
+        int roundReward = getRoundClearGold();
+        gold += roundReward;
+        dispatchItemEvent(new RoundClearedEvent(roundNumber, getPhaseIndex(), roundReward));
         if (bossRound) {
-            gold += getBossClearGold();
+            int bossReward = getBossClearGold();
+            gold += bossReward;
+            dispatchItemEvent(new BossClearedEvent(roundNumber, getPhaseIndex(), bossReward));
             bossesDefeated++;
         }
         pendingRoundNumber = roundNumber + 1;
+        coreHealth = coreMaxHealth;
         intermissionActive = true;
+        updateMusicForCurrentState();
         rollShopOffers();
     }
 
@@ -879,7 +1290,10 @@ public class SecondScreen implements Screen {
         roundMessageTimer = 1.4f;
         intermissionActive = false;
         pendingRoundNumber = -1;
+        rerollsUsedThisShop = 0;
         shopOffers.clear();
+        updateMusicForCurrentState();
+        dispatchItemEvent(new RoundStartedEvent(roundNumber, getPhaseIndex(), bossRound));
     }
 
     private boolean isBossRound(int currentRound) {
@@ -935,16 +1349,126 @@ public class SecondScreen implements Screen {
         return ((roundNumber - 1) / (NORMAL_ROUNDS_PER_BOSS + 1)) + 1;
     }
 
+    private int getCurrentBaseDamage() {
+        return playerBaseDamage + itemSystem.getStats().baseDamage;
+    }
+
+    private int getCurrentCoreMaxHealth() {
+        return Math.max(1, Math.round(BASE_CORE_MAX_HEALTH * itemSystem.getStats().coreMaxHealthMultiplier));
+    }
+
+    private float getShopPhaseCostMultiplier() {
+        switch (getPhaseIndex()) {
+            case 1: return 1.00f;
+            case 2: return 1.10f;
+            case 3: return 1.25f;
+            case 4: return 1.45f;
+            case 5: return 1.70f;
+            default: return 2.00f;
+        }
+    }
+
+    private int getShopOfferCost(ItemDefinition definition) {
+        return Math.max(1, Math.round(getBaseItemCost(definition.rarity) * getShopPhaseCostMultiplier()));
+    }
+
+    private int getCurrentRerollCost() {
+        float scaledBase = BASE_COMMON_ITEM_COST * BASE_REROLL_COST_FACTOR * getShopPhaseCostMultiplier();
+        return Math.max(1, Math.round((float)(scaledBase * Math.pow(REROLL_COST_GROWTH, rerollsUsedThisShop))));
+    }
+
+    private int getBaseItemCost(ItemRarity rarity) {
+        switch (rarity) {
+            case COMMON:
+                return BASE_COMMON_ITEM_COST;
+            case UNCOMMON:
+                return BASE_UNCOMMON_ITEM_COST;
+            case RARE:
+                return BASE_RARE_ITEM_COST;
+            case LEGENDARY:
+            default:
+                return BASE_LEGENDARY_ITEM_COST;
+        }
+    }
+
+    private void dispatchItemEvent(ItemEvent event) {
+        dispatchItemEvent(event, null, null);
+    }
+
+    private void dispatchItemEvent(ItemEvent event, AttackData sourceAttack) {
+        dispatchItemEvent(event, sourceAttack, null);
+    }
+
+    private void dispatchItemEvent(ItemEvent event, AttackData sourceAttack, Enemy sourceTarget) {
+        lastItemEventLabel = event.type().name();
+        AttackData previousAttack = currentItemEventAttack;
+        Enemy previousTarget = currentItemEventTarget;
+        currentItemEventAttack = sourceAttack;
+        currentItemEventTarget = sourceTarget;
+        try {
+            itemSystem.dispatch(event, itemContext);
+        } finally {
+            currentItemEventAttack = previousAttack;
+            currentItemEventTarget = previousTarget;
+        }
+    }
+
+    private AttackData createAttack(int baseDamage, String source, AttackData parentAttack) {
+        int resolvedBaseDamage = Math.max(1, baseDamage);
+        if (parentAttack != null) {
+            AttackData child = parentAttack.createChild(resolvedBaseDamage, source, null);
+            int damage = child.critical ? Math.max(1, Math.round(resolvedBaseDamage * child.critMultiplier)) : resolvedBaseDamage;
+            return new AttackData(child.rootAttackId, child.chainDepth, resolvedBaseDamage, damage, child.critical, child.critMultiplier,
+                source, child.copyTriggeredItems());
+        }
+
+        boolean critical = MathUtils.random() < MathUtils.clamp(itemSystem.getStats().critChance, 0f, 1f);
+        int damage = critical ? Math.max(1, Math.round(resolvedBaseDamage * CRIT_MULTIPLIER)) : resolvedBaseDamage;
+        return new AttackData(nextAttackId++, 0, resolvedBaseDamage, damage, critical, CRIT_MULTIPLIER, source, EnumSet.noneOf(ItemId.class));
+    }
+
+    private AttackData createChildAttack(int baseDamage, String source, AttackData parentAttack, ItemId sourceItemId) {
+        int resolvedBaseDamage = Math.max(1, baseDamage);
+        if (parentAttack == null) {
+            return createAttack(resolvedBaseDamage, source, null);
+        }
+        AttackData child = parentAttack.createChild(resolvedBaseDamage, source, sourceItemId);
+        int damage = child.critical ? Math.max(1, Math.round(resolvedBaseDamage * child.critMultiplier)) : resolvedBaseDamage;
+        return new AttackData(child.rootAttackId, child.chainDepth, resolvedBaseDamage, damage, child.critical, child.critMultiplier,
+            source, child.copyTriggeredItems());
+    }
+
+    private AttackData createChildAttackWithExactDamage(int finalDamage, String source, AttackData parentAttack, ItemId sourceItemId) {
+        int resolvedDamage = Math.max(1, finalDamage);
+        if (parentAttack == null) {
+            return createAttack(resolvedDamage, source, null);
+        }
+        AttackData child = parentAttack.createChild(resolvedDamage, source, sourceItemId);
+        return new AttackData(child.rootAttackId, child.chainDepth, resolvedDamage, resolvedDamage, child.critical, child.critMultiplier,
+            source, child.copyTriggeredItems());
+    }
+
+    private float reserveProcDelay(AttackData attack) {
+        if (attack == null) {
+            return 0f;
+        }
+        int index = Math.floorMod(attack.rootAttackId, nextProcChainTimes.length);
+        float reservedDelay = nextProcChainTimes[index];
+        nextProcChainTimes[index] += PROC_CHAIN_STEP_DELAY;
+        return reservedDelay;
+    }
+
     private int getEnemyKillGold(Enemy enemy) {
-        return enemy.isBoss ? 10 * getPhaseIndex() + enemyKillGoldBonus : 1 + enemyKillGoldBonus;
+        return enemy.isBoss ? 10 * getPhaseIndex() + itemSystem.getStats().enemyKillGoldBonus
+            : 1 + itemSystem.getStats().enemyKillGoldBonus;
     }
 
     private int getRoundClearGold() {
-        return 10 + 5 * getPhaseIndex() + roundClearGoldBonus;
+        return 10 + 5 * getPhaseIndex() + itemSystem.getStats().roundClearGoldBonus;
     }
 
     private int getBossClearGold() {
-        return 25 + 10 * getPhaseIndex() + bossClearGoldBonus;
+        return 25 + 10 * getPhaseIndex() + itemSystem.getStats().bossClearGoldBonus;
     }
 
     private void refillVisibleLines() {
@@ -956,6 +1480,7 @@ public class SecondScreen implements Screen {
     }
 
     private void resetRunState() {
+        itemSystem.reset();
         currentLineIndex = 0;
         currentCharIndex = 0;
         completedWords = 0;
@@ -963,9 +1488,9 @@ public class SecondScreen implements Screen {
         spawnTimer = ROUND_START_DELAY;
         roundMessageTimer = 0f;
         currentSpawnInterval = BASE_SPAWN_INTERVAL;
-        coreMaxHealth = BASE_CORE_MAX_HEALTH;
+        coreMaxHealth = getCurrentCoreMaxHealth();
         coreHealth = coreMaxHealth;
-        gold = 0;
+        gold = STARTING_GOLD;
         roundNumber = 1;
         bossesDefeated = 0;
         enemiesSpawnedThisRound = 0;
@@ -980,16 +1505,26 @@ public class SecondScreen implements Screen {
         godModeEnabled = false;
         roundJumpKeysEnabled = false;
         autoModeEnabled = false;
+        infiniteGoldEnabled = false;
+        itemMenuEnabled = false;
         playerBaseDamage = 1;
         autoFireWpm = DEFAULT_AUTO_WPM;
+        rerollsUsedThisShop = 0;
         autoFireTimer = 0f;
-        enemyKillGoldBonus = 0;
-        roundClearGoldBonus = 0;
-        bossClearGoldBonus = 0;
+        lastItemEventLabel = "None";
+        currentItemEventAttack = null;
+        currentItemEventTarget = null;
         bullets.clear();
         damageNumbers.clear();
         enemies.clear();
         shopOffers.clear();
+        queuedProcActions.clear();
+        explosionEffects.clear();
+        chainEffects.clear();
+        corePulseEffects.clear();
+        for (int i = 0; i < nextProcChainTimes.length; i++) {
+            nextProcChainTimes[i] = 0f;
+        }
         lastSpawnBatch = 1;
         refillVisibleLines();
         startRound(roundNumber);
@@ -999,6 +1534,7 @@ public class SecondScreen implements Screen {
         int clampedRound = MathUtils.clamp(targetRound, 1, TOTAL_ROUNDS);
         roundNumber = clampedRound;
         bossesDefeated = getBossesDefeatedBeforeRound(clampedRound);
+        coreMaxHealth = getCurrentCoreMaxHealth();
         coreHealth = coreMaxHealth;
         errorFlash = 0f;
         roundMessageTimer = 1.2f;
@@ -1008,6 +1544,14 @@ public class SecondScreen implements Screen {
         bullets.clear();
         damageNumbers.clear();
         enemies.clear();
+        queuedProcActions.clear();
+        explosionEffects.clear();
+        chainEffects.clear();
+        corePulseEffects.clear();
+        rerollsUsedThisShop = 0;
+        for (int i = 0; i < nextProcChainTimes.length; i++) {
+            nextProcChainTimes[i] = 0f;
+        }
         lastSpawnBatch = 1;
         startRound(clampedRound);
     }
@@ -1026,11 +1570,26 @@ public class SecondScreen implements Screen {
             return false;
         }
         float buttonX = settingsPanelX + (SETTINGS_PANEL_WIDTH - SETTINGS_BUTTON_WIDTH) * 0.5f;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < SETTINGS_BUTTON_COUNT; i++) {
             float buttonY = getSettingsButtonY(i);
             if (worldX >= buttonX && worldX <= buttonX + SETTINGS_BUTTON_WIDTH
                 && worldY >= buttonY && worldY <= buttonY + SETTINGS_BUTTON_HEIGHT) {
                 activateSettingsButton(i);
+                return true;
+            }
+        }
+
+        float sliderX = settingsPanelX + (SETTINGS_PANEL_WIDTH - SETTINGS_SLIDER_WIDTH) * 0.5f;
+        for (int i = 0; i < SETTINGS_SLIDER_COUNT; i++) {
+            float sliderY = getSettingsSliderTrackY(i) - 12f;
+            if (worldX >= sliderX && worldX <= sliderX + SETTINGS_SLIDER_WIDTH
+                && worldY >= sliderY && worldY <= sliderY + SETTINGS_BUTTON_HEIGHT) {
+                float value = MathUtils.clamp((worldX - sliderX) / SETTINGS_SLIDER_WIDTH, 0f, 1f);
+                if (i == 0) {
+                    game.setMusicVolume(value);
+                } else {
+                    game.setSoundVolume(value);
+                }
                 return true;
             }
         }
@@ -1051,10 +1610,23 @@ public class SecondScreen implements Screen {
             return true;
         }
 
+        float rerollButtonX = shopPanelX + SHOP_PANEL_WIDTH - buttonWidth * 2f - 40f;
+        int rerollCost = getCurrentRerollCost();
+        if (worldX >= rerollButtonX && worldX <= rerollButtonX + buttonWidth && worldY >= buttonY && worldY <= buttonY + buttonHeight) {
+            if (infiniteGoldEnabled || gold >= rerollCost) {
+                if (!infiniteGoldEnabled) {
+                    gold -= rerollCost;
+                }
+                rerollsUsedThisShop++;
+                rollShopOffers();
+            }
+            return true;
+        }
+
         for (int i = 0; i < shopOffers.size; i++) {
             ShopOffer offer = shopOffers.get(i);
             float cardX = getShopCardX(i);
-            float cardY = shopPanelY + 92f;
+            float cardY = getShopCardY();
             if (worldX >= cardX && worldX <= cardX + SHOP_CARD_WIDTH && worldY >= cardY && worldY <= cardY + SHOP_CARD_HEIGHT) {
                 purchaseOffer(offer);
                 return true;
@@ -1065,45 +1637,403 @@ public class SecondScreen implements Screen {
 
     private void rollShopOffers() {
         shopOffers.clear();
-        Array<ShopOffer> pool = new Array<>();
-        pool.add(new ShopOffer("Sharpened Rounds", "+1 base damage", 100, ShopOfferType.DAMAGE_UP));
-        pool.add(new ShopOffer("Core Plating", "+1 max core hp and heal 1", 90, ShopOfferType.CORE_UP));
-        pool.add(new ShopOffer("Bounty Ledger", "+1 gold from every kill", 120, ShopOfferType.KILL_GOLD_UP));
-        pool.add(new ShopOffer("Round Dividend", "+10 round clear gold", 110, ShopOfferType.ROUND_GOLD_UP));
-        pool.add(new ShopOffer("Boss Contract", "+20 boss clear gold", 140, ShopOfferType.BOSS_GOLD_UP));
+        Array<ItemDefinition> pool = new Array<ItemDefinition>();
+        for (ItemDefinition definition : itemRegistry.getAll()) {
+            pool.add(definition);
+        }
 
         while (shopOffers.size < SHOP_OFFER_COUNT && pool.size > 0) {
-            int idx = MathUtils.random(pool.size - 1);
-            shopOffers.add(pool.removeIndex(idx));
+            boolean spawnMysteryBox = MathUtils.randomBoolean(MYSTERY_BOX_CHANCE);
+            if (spawnMysteryBox) {
+                ItemDefinition hiddenReward = removeWeightedDefinition(pool);
+                if (hiddenReward == null) {
+                    break;
+                }
+                shopOffers.add(ShopOffer.createMystery(hiddenReward, getShopOfferCost(hiddenReward)));
+            } else {
+                ItemDefinition definition = removeWeightedDefinition(pool);
+                if (definition == null) {
+                    break;
+                }
+                shopOffers.add(ShopOffer.createNormal(definition, getShopOfferCost(definition)));
+            }
         }
     }
 
     private void purchaseOffer(ShopOffer offer) {
-        if (offer.purchased || gold < offer.cost) {
+        if (offer.purchased || (!infiniteGoldEnabled && gold < offer.cost)) {
             return;
         }
-        gold -= offer.cost;
+        if (!infiniteGoldEnabled) {
+            gold -= offer.cost;
+        }
         offer.purchased = true;
+        itemSystem.addItem(offer.rewardItemId, 1);
+        coreMaxHealth = getCurrentCoreMaxHealth();
+        if (offer.rewardItemId == ItemId.CORE_PLATING) {
+            coreHealth = Math.min(coreMaxHealth, coreHealth + 1);
+        } else if (coreHealth > coreMaxHealth) {
+            coreHealth = coreMaxHealth;
+        }
+        dispatchItemEvent(new ItemPurchasedEvent(offer.rewardItemId, offer.cost, itemSystem.getStacks(offer.rewardItemId)));
+        SimpleSfx.playPurchase(game.soundVolume);
+    }
 
-        switch (offer.type) {
-            case DAMAGE_UP:
-                playerBaseDamage += 1;
-                break;
-            case CORE_UP:
-                coreMaxHealth += 1;
-                coreHealth = Math.min(coreMaxHealth, coreHealth + 1);
-                break;
-            case KILL_GOLD_UP:
-                enemyKillGoldBonus += 1;
-                break;
-            case ROUND_GOLD_UP:
-                roundClearGoldBonus += 10;
-                break;
-            case BOSS_GOLD_UP:
-                bossClearGoldBonus += 20;
-                break;
-            default:
-                break;
+    private void spawnExplosionEffect(float x, float y, float radius) {
+        explosionEffects.add(new ExplosionEffect(new Vector2(x, y), radius, 0.22f));
+    }
+
+    private void spawnChainEffect(float fromX, float fromY, float toX, float toY) {
+        chainEffects.add(new ChainEffect(fromX, fromY, toX, toY, 0.12f));
+    }
+
+    private void spawnCorePulseEffect(float radius) {
+        corePulseEffects.add(new CorePulseEffect(radius, 0.22f));
+    }
+
+    private ItemDefinition removeWeightedDefinition(Array<ItemDefinition> pool) {
+        if (pool.size == 0) {
+            return null;
+        }
+        int totalWeight = 0;
+        for (ItemDefinition definition : pool) {
+            totalWeight += Math.max(1, definition.shopWeight);
+        }
+        int roll = MathUtils.random(totalWeight - 1);
+        for (int i = 0; i < pool.size; i++) {
+            ItemDefinition definition = pool.get(i);
+            roll -= Math.max(1, definition.shopWeight);
+            if (roll < 0) {
+                return pool.removeIndex(i);
+            }
+        }
+        return pool.pop();
+    }
+
+    private void damageNearestEnemy(int damage) {
+        damageNearestEnemy(damage, null);
+    }
+
+    private void damageNearestEnemy(int damage, ItemId sourceItemId) {
+        Enemy nearest = findNearestEnemy();
+        if (nearest == null) {
+            return;
+        }
+        AttackData attack = sourceItemId == null
+            ? createAttack(damage, "direct-nearest", currentItemEventAttack)
+            : createChildAttack(damage, "direct-nearest", currentItemEventAttack, sourceItemId);
+        float delay = reserveProcDelay(attack);
+        Runnable damageAction = () -> applyDirectDamage(nearest, attack);
+        if (delay <= 0f) {
+            damageAction.run();
+        } else {
+            queuedProcActions.add(new QueuedProcAction(delay, damageAction));
+        }
+    }
+
+    private void damageEnemiesNearCore(float radius, int damage) {
+        float radiusSquared = radius * radius;
+        AttackData attack = createAttack(damage, "direct-core-aoe", currentItemEventAttack);
+        for (int i = enemies.size - 1; i >= 0; i--) {
+            Enemy enemy = enemies.get(i);
+            if (enemy.position.dst2(coreX, CORE_Y) <= radiusSquared) {
+                applyDirectDamage(enemy, attack);
+            }
+        }
+    }
+
+    private void slowNearestEnemy(float amount, float duration) {
+        Enemy nearest = findNearestEnemy();
+        if (nearest == null) {
+            return;
+        }
+        applySlow(nearest, amount, duration);
+    }
+
+    private void slowEnemiesNearCore(float radius, float amount, float duration) {
+        float radiusSquared = radius * radius;
+        for (Enemy enemy : enemies) {
+            if (enemy.position.dst2(coreX, CORE_Y) <= radiusSquared) {
+                applySlow(enemy, amount, duration);
+            }
+        }
+    }
+
+    private void applyDirectDamage(Enemy enemy, AttackData attack) {
+        if (!enemies.contains(enemy, true)) {
+            return;
+        }
+        enemy.health -= attack.damage;
+        damageNumbers.add(new DamageNumber(new Vector2(enemy.position.x - 8f, enemy.position.y + 34f),
+            attack.critical ? "CRIT " + attack.damage : Integer.toString(attack.damage), attack.critical));
+        if (enemy.health <= 0) {
+            int killGold = getEnemyKillGold(enemy);
+            gold += killGold;
+            enemies.removeValue(enemy, true);
+            dispatchItemEvent(new EnemyKilledEvent(enemy.isBoss, killGold, attack.critical), attack);
+        }
+    }
+
+    private void applySlow(Enemy enemy, float amount, float duration) {
+        enemy.slowMultiplier = Math.min(enemy.slowMultiplier, MathUtils.clamp(1f - amount, 0.1f, 1f));
+        enemy.slowTimer = Math.max(enemy.slowTimer, duration);
+    }
+
+    private String extractCompletedWord(String line, int currentIndex) {
+        int end = Math.max(0, currentIndex - 1);
+        int start = end;
+        while (start > 0 && !Character.isWhitespace(line.charAt(start - 1))) {
+            start--;
+        }
+        return line.substring(start, end);
+    }
+
+    private String getInventorySummary() {
+        if (itemSystem.getInventory().isEmpty()) {
+            return "none";
+        }
+        StringBuilder builder = new StringBuilder(64);
+        for (InventoryEntry entry : itemSystem.getInventory()) {
+            ItemDefinition definition = itemRegistry.get(entry.itemId);
+            if (definition == null) {
+                continue;
+            }
+            if (builder.length() > 0) {
+                builder.append(", ");
+            }
+            builder.append(definition.name).append(" x").append(entry.stacks);
+        }
+        return builder.toString();
+    }
+
+    private String getPassiveSummary() {
+        return "dmg+" + itemSystem.getStats().baseDamage
+            + ", hp x" + String.format("%.2f", itemSystem.getStats().coreMaxHealthMultiplier)
+            + ", kill+" + itemSystem.getStats().enemyKillGoldBonus
+            + ", round+" + itemSystem.getStats().roundClearGoldBonus
+            + ", boss+" + itemSystem.getStats().bossClearGoldBonus;
+    }
+
+    private final class ScreenGameContext implements GameContext {
+        @Override
+        public io.github.TyPit.listenerTemplate.items.RunStats stats() {
+            return itemSystem.getStats();
+        }
+
+        @Override
+        public AttackData currentAttack() {
+            return currentItemEventAttack;
+        }
+
+        @Override
+        public boolean canCurrentChainTrigger(ItemId itemId) {
+            return currentItemEventAttack == null || currentItemEventAttack.canTrigger(itemId);
+        }
+
+        @Override
+        public int getGold() {
+            return gold;
+        }
+
+        @Override
+        public int getRoundNumber() {
+            return roundNumber;
+        }
+
+        @Override
+        public int getPhaseIndex() {
+            return SecondScreen.this.getPhaseIndex();
+        }
+
+        @Override
+        public int getCompletedWords() {
+            return completedWords;
+        }
+
+        @Override
+        public int getCoreHealth() {
+            return coreHealth;
+        }
+
+        @Override
+        public int getCoreMaxHealth() {
+            return coreMaxHealth;
+        }
+
+        @Override
+        public void fireBonusBulletAtNearest(int damage) {
+            fireBonusBulletAtNearest(damage, null);
+        }
+
+        @Override
+        public void fireBonusBulletAtNearest(int damage, ItemId sourceItemId) {
+            AttackData attack = sourceItemId == null
+                ? createAttack(damage, "bonus-nearest", currentItemEventAttack)
+                : createChildAttack(damage, "bonus-nearest", currentItemEventAttack, sourceItemId);
+            float delay = reserveProcDelay(attack);
+            Runnable spawnAction = () -> {
+                Enemy target = findNearestEnemy();
+                if (target == null) {
+                    return;
+                }
+                bullets.add(new Bullet(
+                    new Vector2(coreX + MathUtils.random(-14f, 14f), CORE_Y + MathUtils.random(-10f, 10f)), target, attack, true));
+            };
+            if (delay <= 0f) {
+                spawnAction.run();
+            } else {
+                queuedProcActions.add(new QueuedProcAction(delay, spawnAction));
+            }
+        }
+
+        @Override
+        public void fireBonusBulletAtStrongest(int damage) {
+            fireBonusBulletAtStrongest(damage, null);
+        }
+
+        @Override
+        public void fireBonusBulletAtStrongest(int damage, ItemId sourceItemId) {
+            AttackData attack = sourceItemId == null
+                ? createAttack(damage, "bonus-strongest", currentItemEventAttack)
+                : createChildAttack(damage, "bonus-strongest", currentItemEventAttack, sourceItemId);
+            float delay = reserveProcDelay(attack);
+            Runnable spawnAction = () -> {
+                Enemy target = findStrongestEnemy();
+                if (target == null) {
+                    return;
+                }
+                bullets.add(new Bullet(
+                    new Vector2(coreX + MathUtils.random(-14f, 14f), CORE_Y + MathUtils.random(-10f, 10f)), target, attack, true));
+            };
+            if (delay <= 0f) {
+                spawnAction.run();
+            } else {
+                queuedProcActions.add(new QueuedProcAction(delay, spawnAction));
+            }
+        }
+
+        @Override
+        public void damageNearestEnemy(int damage) {
+            SecondScreen.this.damageNearestEnemy(damage);
+        }
+
+        @Override
+        public void damageNearestEnemy(int damage, ItemId sourceItemId) {
+            SecondScreen.this.damageNearestEnemy(damage, sourceItemId);
+        }
+
+        @Override
+        public void damageEnemiesNearCore(float radius, int damage) {
+            SecondScreen.this.damageEnemiesNearCore(radius, damage);
+        }
+
+        @Override
+        public void damageNearbyEnemiesFromCurrentTarget(float radius, int maxTargets, int damage, ItemId sourceItemId) {
+            if (currentItemEventTarget == null) {
+                return;
+            }
+            if (sourceItemId != null && currentItemEventAttack != null && !currentItemEventAttack.canTrigger(sourceItemId)) {
+                return;
+            }
+            AttackData chainAttack = createChildAttackWithExactDamage(damage, "chain-near-target", currentItemEventAttack, sourceItemId);
+            Array<Enemy> nearbyEnemies = findNearbyEnemies(currentItemEventTarget, radius, maxTargets, true);
+            for (int i = 0; i < nearbyEnemies.size; i++) {
+                Enemy enemy = nearbyEnemies.get(i);
+                float delay = reserveProcDelay(chainAttack);
+                Runnable damageAction = () -> applyDirectDamage(enemy, chainAttack);
+                if (delay <= 0f) {
+                    damageAction.run();
+                } else {
+                    queuedProcActions.add(new QueuedProcAction(delay, damageAction));
+                }
+            }
+        }
+
+        @Override
+        public void damageAreaAroundCurrentTarget(float radius, int damage, ItemId sourceItemId) {
+            if (currentItemEventTarget == null) {
+                return;
+            }
+            if (sourceItemId != null && currentItemEventAttack != null && !currentItemEventAttack.canTrigger(sourceItemId)) {
+                return;
+            }
+            AttackData blastAttack = createChildAttackWithExactDamage(damage, "area-current-target", currentItemEventAttack, sourceItemId);
+            Array<Enemy> affectedEnemies = findNearbyEnemies(currentItemEventTarget, radius, Integer.MAX_VALUE, false);
+            for (int i = 0; i < affectedEnemies.size; i++) {
+                Enemy enemy = affectedEnemies.get(i);
+                float delay = reserveProcDelay(blastAttack);
+                Runnable damageAction = () -> applyDirectDamage(enemy, blastAttack);
+                if (delay <= 0f) {
+                    damageAction.run();
+                } else {
+                    queuedProcActions.add(new QueuedProcAction(delay, damageAction));
+                }
+            }
+        }
+
+        @Override
+        public void slowNearestEnemy(float amount, float duration) {
+            SecondScreen.this.slowNearestEnemy(amount, duration);
+        }
+
+        @Override
+        public void slowEnemiesNearCore(float radius, float amount, float duration) {
+            SecondScreen.this.slowEnemiesNearCore(radius, amount, duration);
+        }
+
+        @Override
+        public void grantGold(int amount) {
+            gold += amount;
+        }
+
+        @Override
+        public void healCore(int amount) {
+            coreHealth = Math.min(coreMaxHealth, coreHealth + amount);
+        }
+
+        @Override
+        public void spawnExplosionEffectAroundCurrentTarget(float radius) {
+            if (currentItemEventTarget != null) {
+                SecondScreen.this.spawnExplosionEffect(currentItemEventTarget.position.x, currentItemEventTarget.position.y, radius);
+            }
+        }
+
+        @Override
+        public void spawnChainEffectFromCurrentTargetToNearest(float radius) {
+            if (currentItemEventTarget == null) {
+                return;
+            }
+            Array<Enemy> nearbyEnemies = findNearbyEnemies(currentItemEventTarget, radius, 1, true);
+            if (nearbyEnemies.size == 0) {
+                return;
+            }
+            Enemy target = nearbyEnemies.first();
+            SecondScreen.this.spawnChainEffect(currentItemEventTarget.position.x, currentItemEventTarget.position.y, target.position.x, target.position.y);
+        }
+
+        @Override
+        public void spawnCorePulseEffect(float radius) {
+            SecondScreen.this.spawnCorePulseEffect(radius);
+        }
+
+        @Override
+        public void playShotSound() {
+            SimpleSfx.playShot(game.soundVolume);
+        }
+
+        @Override
+        public void playExplosionSound() {
+            SimpleSfx.playExplosion(game.soundVolume);
+        }
+
+        @Override
+        public void playZapSound() {
+            SimpleSfx.playZap(game.soundVolume);
+        }
+
+        @Override
+        public void playCoreHitSound() {
+            SimpleSfx.playCoreHit(game.soundVolume);
         }
     }
 
@@ -1133,6 +2063,16 @@ public class SecondScreen implements Screen {
         }
     }
 
+    private void updateMusicForCurrentState() {
+        if (intermissionActive) {
+            game.playMusic(Drop.MUSIC_SHOP);
+        } else if (bossRound) {
+            game.playMusic(Drop.MUSIC_BOSS);
+        } else {
+            game.playMusic(Drop.MUSIC_GAMEPLAY);
+        }
+    }
+
     private void applyFullscreenMode() {
         Gdx.graphics.setUndecorated(false);
         Gdx.graphics.setFullscreenMode(Gdx.graphics.getDisplayMode());
@@ -1151,11 +2091,23 @@ public class SecondScreen implements Screen {
         Gdx.graphics.setWindowedMode(displayMode.width, displayMode.height);
     }
 
+    private boolean isInsideDebugPanelHeader(float worldX, float worldY) {
+        if (!game.debugMenuUnlocked || coreHealth <= 0) {
+            return false;
+        }
+        float panelHeight = getDebugPanelHeight();
+        float headerHeight = 30f;
+        float headerTop = debugPanelY + panelHeight;
+        float headerBottom = headerTop - headerHeight;
+        return worldX >= debugPanelX && worldX <= debugPanelX + DEBUG_PANEL_WIDTH
+            && worldY >= headerBottom && worldY <= headerTop;
+    }
+
     private boolean handleDebugPanelClick(float worldX, float worldY) {
         if (!game.debugMenuUnlocked || coreHealth <= 0) {
             return false;
         }
-        float panelHeight = DEBUG_PANEL_PADDING * 2f + DEBUG_PANEL_ROW_HEIGHT * 7f;
+        float panelHeight = getDebugPanelHeight();
         if (worldX < debugPanelX || worldX > debugPanelX + DEBUG_PANEL_WIDTH || worldY < debugPanelY || worldY > debugPanelY + panelHeight) {
             return false;
         }
@@ -1196,6 +2148,14 @@ public class SecondScreen implements Screen {
             autoFireTimer = 0f;
             return true;
         }
+        if (isInsideDebugToggle(worldX, worldY, 6)) {
+            infiniteGoldEnabled = !infiniteGoldEnabled;
+            return true;
+        }
+        if (isInsideDebugToggle(worldX, worldY, 7)) {
+            itemMenuEnabled = !itemMenuEnabled;
+            return true;
+        }
         return true;
     }
 
@@ -1228,6 +2188,9 @@ public class SecondScreen implements Screen {
         StringBuilder builder = new StringBuilder(96);
         while (true) {
             String token = essay.nextToken();
+            if (MathUtils.random() < MathUtils.clamp(itemSystem.getStats().wordReplaceWithAChance, 0f, 1f)) {
+                token = "a";
+            }
             String candidate = builder.length() == 0 ? token : builder + " " + token;
 
             if (builder.length() > 0 && measureTextWidth(candidate + " ") > textWrapWidth) {
@@ -1268,6 +2231,54 @@ public class SecondScreen implements Screen {
         return c == '.' || c == ',' || c == ';' || c == '?' || c == '!';
     }
 
+    private boolean handleItemMenuClick(float worldX, float worldY) {
+        if (!itemMenuEnabled || !game.debugMenuUnlocked || coreHealth <= 0) {
+            return false;
+        }
+        float menuWidth = 860f;
+        float menuHeight = 560f;
+        float menuX = coreX - menuWidth * 0.5f;
+        float menuY = CORE_Y - menuHeight * 0.5f;
+        int index = 0;
+        float cardWidth = 190f;
+        float cardHeight = 100f;
+        float padding = 16f;
+        float startX = menuX + 26f;
+        float startY = menuY + menuHeight - 64f;
+
+        for (ItemDefinition def : itemRegistry.getAll()) {
+            int col = index % 4;
+            int row = index / 4;
+            float cardX = startX + col * (cardWidth + padding);
+            float cardY = startY - cardHeight - row * (cardHeight + padding);
+            float btnWidth = 70f;
+            float btnHeight = 28f;
+            float btnY = cardY + 8f;
+            float plusX = cardX + 8f;
+            float minusX = cardX + cardWidth - btnWidth - 8f;
+
+            if (worldX >= plusX && worldX <= plusX + btnWidth && worldY >= btnY && worldY <= btnY + btnHeight) {
+                itemSystem.addItem(def.id, 1);
+                coreMaxHealth = getCurrentCoreMaxHealth();
+                coreHealth = def.id == ItemId.CORE_PLATING ? Math.min(coreMaxHealth, coreHealth + 1) : Math.min(coreMaxHealth, coreHealth);
+                return true;
+            }
+            if (worldX >= minusX && worldX <= minusX + btnWidth && worldY >= btnY && worldY <= btnY + btnHeight) {
+                if (itemSystem.getStacks(def.id) > 0) {
+                    itemSystem.removeItem(def.id, 1);
+                    coreMaxHealth = getCurrentCoreMaxHealth();
+                    coreHealth = Math.min(coreMaxHealth, coreHealth);
+                }
+                return true;
+            }
+            index++;
+        }
+        if (worldX >= menuX && worldX <= menuX + menuWidth && worldY >= menuY && worldY <= menuY + menuHeight) {
+            return true;
+        }
+        return false;
+    }
+
     private final class TypingInput extends InputAdapter {
         @Override
         public boolean keyTyped(char character) {
@@ -1293,7 +2304,12 @@ public class SecondScreen implements Screen {
             if (character == expected) {
                 advanceChar();
             } else {
+                if (MathUtils.random() < MathUtils.clamp(itemSystem.getStats().mistypeForgiveChance, 0f, 1f)) {
+                    advanceChar();
+                    return true;
+                }
                 errorFlash = ERROR_FLASH_DURATION;
+                dispatchItemEvent(new CharacterTypedWrongEvent(character, expected, completedWords, currentCharIndex));
             }
             return true;
         }
@@ -1329,7 +2345,18 @@ public class SecondScreen implements Screen {
         @Override
         public boolean touchDown(int screenX, int screenY, int pointer, int button) {
             game.viewport.unproject(tempTouch.set(screenX, screenY, 0f));
+
+            if (isInsideDebugPanelHeader(tempTouch.x, tempTouch.y)) {
+                isDraggingDebugPanel = true;
+                debugPanelDragOffsetX = tempTouch.x - debugPanelX;
+                debugPanelDragOffsetY = tempTouch.y - debugPanelY;
+                return true;
+            }
+
             if (handleSettingsClick(tempTouch.x, tempTouch.y)) {
+                return true;
+            }
+            if (handleItemMenuClick(tempTouch.x, tempTouch.y)) {
                 return true;
             }
             if (handleShopClick(tempTouch.x, tempTouch.y)) {
@@ -1347,6 +2374,30 @@ public class SecondScreen implements Screen {
             }
             return false;
         }
+
+        @Override
+        public boolean touchDragged(int screenX, int screenY, int pointer) {
+            if (isDraggingDebugPanel) {
+                game.viewport.unproject(tempTouch.set(screenX, screenY, 0f));
+                debugPanelX = tempTouch.x - debugPanelDragOffsetX;
+                debugPanelY = tempTouch.y - debugPanelDragOffsetY;
+
+                // Clamp to screen bounds
+                debugPanelX = Math.max(0f, Math.min(debugPanelX, game.viewport.getWorldWidth() - DEBUG_PANEL_WIDTH));
+                debugPanelY = Math.max(0f, Math.min(debugPanelY, game.viewport.getWorldHeight() - getDebugPanelHeight()));
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+            if (isDraggingDebugPanel) {
+                isDraggingDebugPanel = false;
+                return true;
+            }
+            return false;
+        }
     }
 
     @Override
@@ -1357,9 +2408,13 @@ public class SecondScreen implements Screen {
         coreX = game.viewport.getWorldWidth() * 0.5f;
         restartButtonX = coreX - RESTART_BUTTON_WIDTH * 0.5f;
         restartButtonY = CORE_Y - 120f;
+        shopPanelX = coreX - SHOP_PANEL_WIDTH * 0.5f;
+        shopPanelY = CORE_Y - 280f;
+        settingsPanelX = coreX - SETTINGS_PANEL_WIDTH * 0.5f;
+        settingsPanelY = CORE_Y - getSettingsPanelHeight() * 0.5f;
         textWrapWidth = BOX_WIDTH - PADDING * 2f;
         debugPanelX = game.viewport.getWorldWidth() - DEBUG_PANEL_WIDTH - 24f;
-        debugPanelY = game.viewport.getWorldHeight() - 300f;
+        debugPanelY = game.viewport.getWorldHeight() - getDebugPanelHeight() - 24f;
     }
 
     @Override
@@ -1386,7 +2441,7 @@ public class SecondScreen implements Screen {
 
     private static final class InfiniteEssay {
         private static final String[] TOKENS = {
-            "The", "\"quick\"", "brown", "fox.", "Jumps", "over", "a", "'LaZy'", "river.",
+            "The", "quick", "brown", "fox.", "Jumps", "over", "a", "lazy", "river.",
             "Every", "sentence", "pushes", "the", "player", "forward,", "but", "precision",
             "still", "matters.", "A", "measured", "rhythm", "keeps", "the", "screen", "clear,",
             "while", "panic", "invites", "mistakes.", "Some", "words", "arrive", "softly;",
@@ -1435,6 +2490,8 @@ public class SecondScreen implements Screen {
         private final boolean isBoss;
         private final Color fillColor;
         private final Color outlineColor;
+        private float slowMultiplier = 1f;
+        private float slowTimer;
 
         private Enemy(Vector2 position, float speed, int health, int damage, boolean isBoss, Color fillColor, Color outlineColor) {
             this.position = position;
@@ -1451,47 +2508,110 @@ public class SecondScreen implements Screen {
         private final Vector2 position;
         private final Vector2 velocity = new Vector2();
         private final Enemy target;
-        private final int damage;
+        private final AttackData attack;
+        private final boolean bonusShot;
 
-        private Bullet(Vector2 position, Enemy target, int damage) {
+        private Bullet(Vector2 position, Enemy target, AttackData attack, boolean bonusShot) {
             this.position = position;
             this.target = target;
-            this.damage = damage;
+            this.attack = attack;
+            this.bonusShot = bonusShot;
         }
     }
 
     private static final class DamageNumber {
         private final Vector2 position;
         private final String text;
+        private final boolean critical;
         private float remaining = DAMAGE_NUMBER_LIFETIME;
 
-        private DamageNumber(Vector2 position, String text) {
+        private DamageNumber(Vector2 position, String text, boolean critical) {
             this.position = position;
             this.text = text;
+            this.critical = critical;
         }
     }
 
-    private enum ShopOfferType {
-        DAMAGE_UP,
-        CORE_UP,
-        KILL_GOLD_UP,
-        ROUND_GOLD_UP,
-        BOSS_GOLD_UP
+    private static final class QueuedProcAction {
+        private float remainingDelay;
+        private final Runnable runnable;
+
+        private QueuedProcAction(float remainingDelay, Runnable runnable) {
+            this.remainingDelay = remainingDelay;
+            this.runnable = runnable;
+        }
+    }
+
+    private static final class ExplosionEffect {
+        private final Vector2 position;
+        private final float radius;
+        private final float duration;
+        private float remaining;
+
+        private ExplosionEffect(Vector2 position, float radius, float duration) {
+            this.position = position;
+            this.radius = radius;
+            this.duration = duration;
+            this.remaining = duration;
+        }
+    }
+
+    private static final class ChainEffect {
+        private final float fromX;
+        private final float fromY;
+        private final float toX;
+        private final float toY;
+        private final float duration;
+        private float remaining;
+
+        private ChainEffect(float fromX, float fromY, float toX, float toY, float duration) {
+            this.fromX = fromX;
+            this.fromY = fromY;
+            this.toX = toX;
+            this.toY = toY;
+            this.duration = duration;
+            this.remaining = duration;
+        }
+    }
+
+    private static final class CorePulseEffect {
+        private final float radius;
+        private final float duration;
+        private float remaining;
+
+        private CorePulseEffect(float radius, float duration) {
+            this.radius = radius;
+            this.duration = duration;
+            this.remaining = duration;
+        }
     }
 
     private static final class ShopOffer {
+        private final ItemId rewardItemId;
         private final String name;
         private final String description;
         private final int cost;
-        private final ShopOfferType type;
+        private final boolean isMystery;
+        private final ItemRarity rarity;
         private boolean purchased;
 
-        private ShopOffer(String name, String description, int cost, ShopOfferType type) {
+        private ShopOffer(ItemId rewardItemId, String name, String description, int cost, boolean isMystery, ItemRarity rarity) {
+            this.rewardItemId = rewardItemId;
             this.name = name;
             this.description = description;
             this.cost = cost;
-            this.type = type;
+            this.isMystery = isMystery;
+            this.rarity = rarity;
             this.purchased = false;
+        }
+
+        private static ShopOffer createNormal(ItemDefinition definition, int cost) {
+            return new ShopOffer(definition.id, definition.name, definition.description, cost, false, definition.rarity);
+        }
+
+        private static ShopOffer createMystery(ItemDefinition rewardDefinition, int cost) {
+            String description = "Unwrap a hidden item rolled from the normal shop pool. Rarity odds follow the same weighted rules as visible offers.";
+            return new ShopOffer(rewardDefinition.id, "Mystery Box", description, cost, true, rewardDefinition.rarity);
         }
     }
 }

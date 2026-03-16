@@ -1,0 +1,16 @@
+package io.github.TyPit.listenerTemplate.items;
+
+public enum ItemEventType {
+    CHARACTER_TYPED_CORRECT,
+    CHARACTER_TYPED_WRONG,
+    WORD_COMPLETED,
+    BULLET_FIRED,
+    BULLET_HIT_ENEMY,
+    ENEMY_KILLED,
+    CORE_DAMAGED,
+    ROUND_STARTED,
+    ROUND_CLEARED,
+    BOSS_CLEARED,
+    SHOP_ENTERED,
+    ITEM_PURCHASED
+}

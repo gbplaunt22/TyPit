@@ -29,6 +29,7 @@ public class FirstScreen implements Screen {
 
     @Override
     public void show() {
+        game.playMusic(Drop.MUSIC_TITLE);
         stage = new Stage(new FitViewport(1920, 1080), game.batch);
         Table table = new Table();
         table.setFillParent(true);
