@@ -1,4 +1,14 @@
+Music: https://www.youtube.com/watch?v=tksJbDi38tQ by Wayne
+
+https://mtsca.bandcamp.com/album/balatro
+
+https://open.spotify.com/artist/6YuhDVYBg5PxcXGEcW9k0G
+
+Music is temporary palceholder.
+
 # TyPit
+
+# To download, head over to the release section.
 
 A [libGDX](https://libgdx.com/) project generated with [gdx-liftoff](https://github.com/libgdx/gdx-liftoff).
 
