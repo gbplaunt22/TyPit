@@ -6,7 +6,7 @@ https://open.spotify.com/artist/6YuhDVYBg5PxcXGEcW9k0G
 
 Music is temporary palceholder.
 
-# To download, head over to the release section.
+# To download, head over to the 'Releases' section on the right sidebar. Then select the jar for your OS. 
 
 # TyPit
 
